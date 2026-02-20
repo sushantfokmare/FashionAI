@@ -1,0 +1,30 @@
+# Python dependencies for AI Service
+
+# FastAPI framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+python-multipart==0.0.6
+aiofiles==23.2.1
+
+# Image processing
+Pillow==10.2.0
+numpy==1.26.3
+
+# AI/ML - Stable Diffusion SDXL-Turbo
+torch>=2.0.0
+torchvision>=0.15.0
+diffusers>=0.25.0
+transformers>=4.36.0
+accelerate>=0.25.0
+
+# CLIP and FAISS for recommendations
+git+https://github.com/openai/CLIP.git
+faiss-cpu>=1.7.4
+pandas>=2.0.0
+tqdm>=4.65.0
+
+# Optional: For enhanced features
+# mediapy  # Not needed for API (only for notebooks)
+# safetensors>=0.4.0  # Automatically installed with diffusers
+

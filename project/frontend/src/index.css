@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ...existing code... */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Local background (served from frontend/public/images). Using tecture.jpg */
+    background-image: url('/images/tecture.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+
+    /* Add: create stacking context for overlay */
+    position: relative;
+  }
+
+  /* Add: solid overlay to improve contrast (adjust alpha as needed) */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35); /* make 0.45–0.55 for darker */
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Ensure app content sits above the overlay */
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+}
+/* ...existing code... */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Optional: quick readability boost for headings/buttons */
+  .text-shadow {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  
+  /* Fashion-themed dropdown enhancements */
+  select {
+    background-image: none !important;
+  }
+  
+  select:focus {
+    transform: translateY(-1px);
+  }
+  
+  select option {
+    padding: 12px 16px;
+    font-weight: 500;
+  }
+  
+  select optgroup {
+    font-weight: 700;
+    padding: 8px 0;
+    font-size: 0.95em;
+    letter-spacing: 0.5px;
+  }
+  
+  /* Smooth transitions for all interactive elements */
+  select, button, input, textarea {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Enhance focus states with fashion-forward rings */
+  select:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1), 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Dropdown hover glow effect */
+  .group:hover select {
+    box-shadow: 0 8px 30px -5px rgba(244, 63, 94, 0.15);
+  }
+}

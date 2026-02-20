@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: fashionai-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-fashionai}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - fashionai-network
+
+  # AI Service (Python FastAPI)
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: fashionai-ai-service
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - HOST=0.0.0.0
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./services/ai-service:/app
+      - ./data:/app/data
+      - ai_models:/app/models
+    networks:
+      - fashionai-network
+    depends_on:
+      - mongodb
+    # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Backend API (Node.js Express)
+  backend:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
+    container_name: fashionai-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongodb:27017/fashionai
+      - AI_SERVICE_URL=http://ai-service:8000
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./services/backend:/app
+      - backend_uploads:/app/uploads
+    networks:
+      - fashionai-network
+    depends_on:
+      - mongodb
+      - ai-service
+
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: fashionai-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=http://localhost:5000
+      - VITE_AI_SERVICE_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - fashionai-network
+    depends_on:
+      - backend
+
+  # Nginx Reverse Proxy (Optional)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: fashionai-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./config/nginx/ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - fashionai-network
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #     - ai-service
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  ai_models:
+    driver: local
+  backend_uploads:
+    driver: local
+  frontend_node_modules:
+    driver: local
+
+networks:
+  fashionai-network:
+    driver: bridge

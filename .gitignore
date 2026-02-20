@@ -1,0 +1,144 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.npm
+.eslintcache
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# AI/ML Models & Data
+*.pth
+*.pt
+*.h5
+*.pkl
+*.joblib
+*.onnx
+*.faiss
+*.npy
+data/datasets/*
+!data/datasets/.gitkeep
+data/models/*
+!data/models/.gitkeep
+
+# Service-specific (both old and new paths)
+project/ai_service/data/fashion_dataset*/
+project/ai_service/clip_faiss/*.faiss
+project/ai_service/clip_faiss/*.npy
+services/ai-service/data/fashion_dataset*/
+services/ai-service/clip_faiss/*.faiss
+services/ai-service/clip_faiss/*.npy
+services/ai-service/generated_images/*.png
+services/ai-service/generated_images/*.jpg
+!services/ai-service/generated_images/README.md
+services/ai-service/models/*.pth
+services/ai-service/models/*.pt
+!services/ai-service/models/__init__.py
+
+# Images (keep only essential ones)
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp
+# Allow logo and small essential images
+!**/favicon.png
+!**/logo.png
+!README_images/
+
+# Uploads & Generated
+uploads/
+generated_images/
+*.tmp
+temp/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Testing
+coverage/
+.nyc_output/
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Build & Cache
+.cache/
+.parcel-cache/
+.next/
+out/
+.nuxt/
+.vite/
+
+# Misc
+*.bak
+project_structure.txt
+.backup/
+node_modules.old/
+
+# Keep important files
+!.gitkeep

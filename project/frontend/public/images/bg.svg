@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <!-- Brand-inspired gradient (rose -> pink -> orange) -->
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#fb923c"/>
+    </linearGradient>
+
+    <!-- Soft glow spots -->
+    <radialGradient id="r1" cx="0.25" cy="0.3" r="0.6">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="r2" cx="0.82" cy="0.78" r="0.55">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Subtle grain for texture -->
+    <filter id="noise">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer>
+        <feFuncA type="table" tableValues="0 0.08"/>
+      </feComponentTransfer>
+    </filter>
+  </defs>
+
+  <!-- Base gradient -->
+  <rect width="100%" height="100%" fill="url(#g)"/>
+
+  <!-- Light blobs -->
+  <ellipse cx="480" cy="320" rx="440" ry="440" fill="url(#r1)"/>
+  <ellipse cx="1520" cy="820" rx="400" ry="400" fill="url(#r2)"/>
+
+  <!-- Grain overlay -->
+  <rect width="100%" height="100%" filter="url(#noise)" opacity="0.15"/>
+</svg>
