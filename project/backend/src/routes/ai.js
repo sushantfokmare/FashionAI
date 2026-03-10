@@ -253,4 +253,70 @@ router.post('/sketch-to-design', async (req, res) => {
   }
 });
 
-module.exports = router;
+/**
+ * POST /api/ai/similar-designs
+ * Search for similar fashion designs using text and/or image
+ */
+router.post('/similar-designs', async (req, res) => {
+  try {
+    const FormData = require('form-data');
+    const formData = new FormData();
+    
+    // Forward query text if provided
+    if (req.body.query) {
+      formData.append('query', req.body.query);
+    }
+    
+    // Forward image file if provided
+    if (req.files && req.files.image) {
+      const imageFile = req.files.image;
+      formData.append('image', imageFile.data, {
+        filename: imageFile.name,
+        contentType: imageFile.mimetype
+      });
+    }
+    
+    // Forward search parameters
+    formData.append('topK', req.body.topK || '20');
+    formData.append('textWeight', req.body.textWeight || '0.5');
+    formData.append('includePalette', req.body.includePalette || 'true');
+    formData.append('includeSilhouette', req.body.includeSilhouette || 'true');
+    formData.append('includeTexture', req.body.includeTexture || 'true');
+
+    console.log('🔍 Forwarding to Python AI service:', `${AI_SERVICE_URL}/similar-designs`);
+
+    // Forward request to Python AI service
+    const response = await axios.post(`${AI_SERVICE_URL}/similar-designs`, formData, {
+      headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
+      timeout: 30000, // 30 second timeout
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+
+    console.log('✅ Similarity search successful');
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('❌ Similar designs error:', error.message);
+    if (error.response) {
+      console.error('Python service error:', error.response.status, error.response.data);
+    }
+    
+    if (error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ 
+        message: 'AI service is unavailable. Please ensure the Python service is running.' 
+      });
+    }
+
+    if (error.response) {
+      return res.status(error.response.status).json({ 
+        message: error.response.data.detail || 'Similarity search failed'
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Failed to search for similar designs. Please try again.' 
+    });
+  }
+});
+

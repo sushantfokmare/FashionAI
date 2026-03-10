@@ -738,6 +738,102 @@ async def occasion_styling(request: OccasionRequest):
         )
 
 
+@app.post("/similar-designs")
+async def similar_designs(
+    query: str = Form(None),
+    image: UploadFile = File(None),
+    topK: int = Form(20),
+    textWeight: float = Form(0.5),
+    includePalette: bool = Form(True),
+    includeSilhouette: bool = Form(True),
+    includeTexture: bool = Form(True)
+):
+    """
+    Combined similarity search using text and/or image.
+    Supports both text-only, image-only, and hybrid search.
+    """
+    global recommendation_engine
+
+    if recommendation_engine is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Recommendation engine not loaded"
+        )
+
+    if not query and not image:
+        raise HTTPException(
+            status_code=400,
+            detail="Either query text or image must be provided"
+        )
+
+    try:
+        results = []
+        
+        # Text-only search
+        if query and not image:
+            logger.info(f"Text-only similarity search: '{query}', topK={topK}")
+            results = recommendation_engine.search_text(query, top_k=topK)
+        
+        # Image-only search
+        elif image and not query:
+            logger.info(f"Image-only similarity search, topK={topK}")
+            image_data = await image.read()
+            temp_path = None
+            try:
+                # Save temporary file
+                temp_path = os.path.join(UPLOAD_DIR, f"temp_{image.filename}")
+                with open(temp_path, "wb") as f:
+                    f.write(image_data)
+                
+                results = recommendation_engine.search_image(temp_path, top_k=topK)
+            finally:
+                # Clean up temp file
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+        
+        # Hybrid search (both text and image)
+        else:
+            logger.info(f"Hybrid similarity search: '{query}' + image, topK={topK}, textWeight={textWeight}")
+            image_data = await image.read()
+            temp_path = None
+            try:
+                # Save temporary file
+                temp_path = os.path.join(UPLOAD_DIR, f"temp_{image.filename}")
+                with open(temp_path, "wb") as f:
+                    f.write(image_data)
+                
+                results = recommendation_engine.hybrid_search(
+                    text=query,
+                    image_path=temp_path,
+                    text_weight=textWeight,
+                    top_k=topK
+                )
+            finally:
+                # Clean up temp file
+                if temp_path and os.path.exists(temp_path):
+                    os.remove(temp_path)
+        
+        # Clean results for JSON serialization
+        cleaned_results = [clean_item_for_json(item) for item in results]
+        
+        logger.info(f"Found {len(cleaned_results)} similar designs")
+        return {
+            "success": True,
+            "results": cleaned_results,
+            "count": len(cleaned_results),
+            "query": query if query else "image search"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Similarity search error: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to search similar designs: {str(e)}"
+        )
+
+
 # -------------------------------------------------
 # Run server
 # -------------------------------------------------
