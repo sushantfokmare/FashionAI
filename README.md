@@ -129,12 +129,12 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 - 📊 Health Check: https://yourdomain.com/health
 
 📖 **Deployment Guide:**
-- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](DEPLOYMENT_GUIDE_HYBRID.md) - Complete deployment guide (FREE cloud + local AI)
+- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](docs/readmes/DEPLOYMENT_GUIDE_HYBRID.md) - Complete deployment guide (FREE cloud + local AI)
 
 ## 📚 Documentation
 
 - 🤝 [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute to this project
-- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](DEPLOYMENT_GUIDE_HYBRID.md) - Deploy frontend/backend to cloud (FREE)
+- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](docs/readmes/DEPLOYMENT_GUIDE_HYBRID.md) - Deploy frontend/backend to cloud (FREE)
 
 ## 🛠️ Technology Stack
 
