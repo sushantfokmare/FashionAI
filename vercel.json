@@ -1,20 +1,6 @@
 {
   "version": 2,
   "name": "fashionai-studio",
-  "buildCommand": "cd project/frontend && npm install && npm run build",
-  "outputDirectory": "project/frontend/dist",
-  "devCommand": "cd project/frontend && npm run dev",
-  "installCommand": "cd project/frontend && npm install",
   "framework": "vite",
-  "regions": ["iad1"],
-  "env": {
-    "VITE_API_URL": "",
-    "VITE_AI_SERVICE_URL": ""
-  },
-  "build": {
-    "env": {
-      "VITE_API_URL": "",
-      "VITE_AI_SERVICE_URL": ""
-    }
-  }
+  "regions": ["iad1"]
 }
