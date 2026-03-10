@@ -106,6 +106,9 @@ services/ai-service/models/*.pt
 !**/favicon.png
 !**/logo.png
 !README_images/
+!project/frontend/public/images/*.jpg
+!project/frontend/public/images/*.png
+!project/frontend/public/images/*.svg
 
 # Uploads & Generated
 uploads/*
