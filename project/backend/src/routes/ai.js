@@ -320,3 +320,4 @@ router.post('/similar-designs', async (req, res) => {
   }
 });
 
+module.exports = router;
