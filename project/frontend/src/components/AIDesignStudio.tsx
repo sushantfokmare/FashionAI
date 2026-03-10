@@ -3034,10 +3034,10 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                 return;
                               }
                               
-                              const response = await fetch(`${AI_SERVICE_URL}/recommend/text`, {
+                              const response = await fetch(`${API_URL}/api/ai/similar-designs`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ query })
+                                body: JSON.stringify({ query, topK: 20 })
                               });
                               
                               if (!response.ok) {
@@ -3046,20 +3046,20 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                               
                               const data = await response.json();
                               
-                              // Flatten grouped results into single array
+                              // Process results from new API format
                               const results: any[] = [];
-                              for (const [category, items] of Object.entries(data.results)) {
-                                (items as any[]).forEach((item: any) => {
+                              if (data.success && data.results) {
+                                data.results.forEach((item: any, index: number) => {
                                   results.push({
                                     id: item.id || item.image,
-                                    title: item.description || `${item.color || ''} ${item.sub_category || category}`.trim(),
-                                    image: `http://localhost:8000/dataset/images/${item.image}`,
-                                    category: category,
+                                    title: item.description || `${item.color || ''} ${item.sub_category || ''}`.trim(),
+                                    image: `${AI_SERVICE_URL}/dataset/images/${item.image}`,
+                                    category: item.main_category,
                                     color: item.color,
                                     style: item.style,
                                     gender: item.gender,
                                     occasion: item.occasion,
-                                    match: Math.round(95 - (results.length * 2)) // Approximate match score
+                                    match: Math.round(95 - (index * 2)) // Approximate match score
                                   });
                                 });
                               }
@@ -3151,9 +3151,10 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                             
                             try {
                               const formData = new FormData();
-                              formData.append('file', similarityImageFile);
+                              formData.append('image', similarityImageFile);
+                              formData.append('topK', '20');
                               
-                              const response = await fetch('http://localhost:8000/recommend/image', {
+                              const response = await fetch(`${API_URL}/api/ai/similar-designs`, {
                                 method: 'POST',
                                 body: formData
                               });
@@ -3164,20 +3165,20 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                               
                               const data = await response.json();
                               
-                              // Flatten grouped results into single array
+                              // Process results from new API format
                               const results: any[] = [];
-                              for (const [category, items] of Object.entries(data.results)) {
-                                (items as any[]).forEach((item: any) => {
+                              if (data.success && data.results) {
+                                data.results.forEach((item: any, index: number) => {
                                   results.push({
                                     id: item.id || item.image,
-                                    title: item.description || `${item.color || ''} ${item.sub_category || category}`.trim(),
-                                    image: `http://localhost:8000/dataset/images/${item.image}`,
-                                    category: category,
+                                    title: item.description || `${item.color || ''} ${item.sub_category || ''}`.trim(),
+                                    image: `${AI_SERVICE_URL}/dataset/images/${item.image}`,
+                                    category: item.main_category,
                                     color: item.color,
                                     style: item.style,
                                     gender: item.gender,
                                     occasion: item.occasion,
-                                    match: Math.round(95 - (results.length * 2)) // Approximate match score
+                                    match: Math.round(95 - (index * 2)) // Approximate match score
                                   });
                                 });
                               }
