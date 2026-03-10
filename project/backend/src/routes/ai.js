@@ -320,4 +320,97 @@ router.post('/similar-designs', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/ai/outfit-match
+ * Match outfit items to uploaded image
+ */
+router.post('/outfit-match', async (req, res) => {
+  try {
+    const FormData = require('form-data');
+    const formData = new FormData();
+    
+    // Forward image file if provided
+    if (req.files && req.files.file) {
+      const imageFile = req.files.file;
+      formData.append('file', imageFile.data, {
+        filename: imageFile.name,
+        contentType: imageFile.mimetype
+      });
+    }
+
+    // Forward request to Python AI service
+    const response = await axios.post(`${AI_SERVICE_URL}/recommend/image-outfit`, formData, {
+      headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
+      timeout: 30000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Outfit match error:', error.message);
+    if (error.response) {
+      return res.status(error.response.status).json({ 
+        message: error.response.data.detail || 'Outfit matching failed'
+      });
+    }
+    res.status(500).json({ 
+      message: 'Failed to match outfit. Please try again.' 
+    });
+  }
+});
+
+/**
+ * POST /api/ai/occasion-styling
+ * Generate outfit recommendations based on occasion and preferences
+ */
+router.post('/occasion-styling', async (req, res) => {
+  try {
+    const response = await axios.post(`${AI_SERVICE_URL}/occasion-styling`, req.body, {
+      headers: { 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true' 
+      },
+      timeout: 30000
+    });
+
+    res.json(response.data);
+
+  } catch (error) {
+    console.error('Occasion styling error:', error.message);
+    if (error.response) {
+      return res.status(error.response.status).json({ 
+        message: error.response.data.detail || 'Occasion styling failed'
+      });
+    }
+    res.status(500).json({ 
+      message: 'Failed to generate occasion outfits. Please try again.' 
+    });
+  }
+});
+
+/**
+ * GET /api/ai/dataset/images/:filename
+ * Proxy dataset images from AI service
+ */
+router.get('/dataset/images/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const response = await axios.get(`${AI_SERVICE_URL}/dataset/images/${filename}`, {
+      responseType: 'stream',
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    
+    // Forward content type
+    res.set('Content-Type', response.headers['content-type']);
+    
+    // Pipe image stream to response
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Image proxy error:', error.message);
+    res.status(404).json({ message: 'Image not found' });
+  }
+});
+
 module.exports = router;

@@ -3053,7 +3053,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                   results.push({
                                     id: item.id || item.image,
                                     title: item.description || `${item.color || ''} ${item.sub_category || ''}`.trim(),
-                                    image: `${AI_SERVICE_URL}/dataset/images/${item.image}`,
+                                    image: `${API_URL}/api/ai/dataset/images/${item.image}`,
                                     category: item.main_category,
                                     color: item.color,
                                     style: item.style,
@@ -3172,7 +3172,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                   results.push({
                                     id: item.id || item.image,
                                     title: item.description || `${item.color || ''} ${item.sub_category || ''}`.trim(),
-                                    image: `${AI_SERVICE_URL}/dataset/images/${item.image}`,
+                                    image: `${API_URL}/api/ai/dataset/images/${item.image}`,
                                     category: item.main_category,
                                     color: item.color,
                                     style: item.style,
@@ -3341,7 +3341,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                 const formData = new FormData();
                                 formData.append('file', outfitMatchImageFile);
 
-                                const response = await fetch('http://localhost:8000/recommend/image-outfit', {
+                                const response = await fetch(`${API_URL}/api/ai/outfit-match`, {
                                   method: 'POST',
                                   body: formData,
                                 });
@@ -3363,7 +3363,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                     categoryResults[category] = items.map((item: any, index: number) => ({
                                       id: `${category}-${index}`,
                                       title: item.description || item.product_name || item.productDisplayName || 'Fashion Item',
-                                      image: `http://localhost:8000/dataset/images/${item.image || item.image_path}`,
+                                      image: `${API_URL}/api/ai/dataset/images/${item.image || item.image_path}`,
                                       category: category,
                                       match: Math.floor(Math.random() * 10) + 85,
                                       description: `${item.color || item.base_color || ''} ${item.sub_category || category}`.trim(),
@@ -3613,7 +3613,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                           setOccasionError(null);
                           
                           try {
-                            const response = await fetch('http://localhost:8000/occasion-styling', {
+                            const response = await fetch(`${API_URL}/api/ai/occasion-styling`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({
@@ -3704,7 +3704,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                 <div className="grid grid-cols-2 gap-2 p-2 bg-gray-100 dark:bg-gray-900">
                                   {outfit.clothing?.type === 'dress' && outfit.images?.clothing ? (
                                     <img 
-                                      src={`http://localhost:8000/dataset/images/${outfit.images.clothing}`} 
+                                      src={`${API_URL}/api/ai/dataset/images/${outfit.images.clothing}`} 
                                       alt="Dress"
                                       className="col-span-2 w-full h-48 object-cover rounded-lg"
                                     />
@@ -3712,14 +3712,14 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                     <>
                                       {outfit.images?.clothing?.top && (
                                         <img 
-                                          src={`http://localhost:8000/dataset/images/${outfit.images.clothing.top}`} 
+                                          src={`${API_URL}/api/ai/dataset/images/${outfit.images.clothing.top}`} 
                                           alt="Top"
                                           className="w-full h-32 object-cover rounded-lg"
                                         />
                                       )}
                                       {outfit.images?.clothing?.bottom && (
                                         <img 
-                                          src={`http://localhost:8000/dataset/images/${outfit.images.clothing.bottom}`} 
+                                          src={`${API_URL}/api/ai/dataset/images/${outfit.images.clothing.bottom}`} 
                                           alt="Bottom"
                                           className="w-full h-32 object-cover rounded-lg"
                                         />
@@ -3728,14 +3728,14 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                   )}
                                   {outfit.images?.footwear && (
                                     <img 
-                                      src={`http://localhost:8000/dataset/images/${outfit.images.footwear}`} 
+                                      src={`${API_URL}/api/ai/dataset/images/${outfit.images.footwear}`} 
                                       alt="Footwear"
                                       className="w-full h-24 object-cover rounded-lg"
                                     />
                                   )}
                                   {outfit.images?.accessories?.[0] && (
                                     <img 
-                                      src={`http://localhost:8000/dataset/images/${outfit.images.accessories[0]}`} 
+                                      src={`${API_URL}/api/ai/dataset/images/${outfit.images.accessories[0]}`} 
                                       alt="Accessory"
                                       className="w-full h-24 object-cover rounded-lg"
                                     />
@@ -3809,7 +3809,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                           ? outfit.images?.clothing
                                           : outfit.images?.clothing?.top;
                                         if (imageToSave) {
-                                          handleSaveToWishlist(`http://localhost:8000/dataset/images/${imageToSave}`);
+                                          handleSaveToWishlist(`${API_URL}/api/ai/dataset/images/${imageToSave}`);
                                         }
                                       }}
                                       className={`p-2 rounded-lg transition-all ${
@@ -3817,7 +3817,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                           const imageToCheck = outfit.clothing?.type === 'dress'
                                             ? outfit.images?.clothing
                                             : outfit.images?.clothing?.top;
-                                          return imageToCheck && savedDesigns.includes(`http://localhost:8000/dataset/images/${imageToCheck}`)
+                                          return imageToCheck && savedDesigns.includes(`${API_URL}/api/ai/dataset/images/${imageToCheck}`)
                                             ? 'bg-rose-600 text-white'
                                             : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600';
                                         })()
@@ -3829,7 +3829,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                           const imageToCheck = outfit.clothing?.type === 'dress'
                                             ? outfit.images?.clothing
                                             : outfit.images?.clothing?.top;
-                                          return imageToCheck && savedDesigns.includes(`http://localhost:8000/dataset/images/${imageToCheck}`)
+                                          return imageToCheck && savedDesigns.includes(`${API_URL}/api/ai/dataset/images/${imageToCheck}`)
                                             ? 'fill-current'
                                             : 'text-gray-600 dark:text-gray-400';
                                         })()
