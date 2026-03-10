@@ -33,7 +33,8 @@ router.post('/generate', async (req, res) => {
       style,
       color_palette
     }, {
-      timeout: 300000 // 5 minute timeout for AI generation (CPU can be slow)
+      timeout: 300000, // 5 minute timeout for AI generation (CPU can be slow)
+      headers: { 'ngrok-skip-browser-warning': 'true' }
     });
 
     // Return the response from Python service
@@ -76,7 +77,8 @@ router.post('/generate', async (req, res) => {
 router.get('/health', async (req, res) => {
   try {
     const response = await axios.get(`${AI_SERVICE_URL}/health`, {
-      timeout: 5000
+      timeout: 5000,
+      headers: { 'ngrok-skip-browser-warning': 'true' }
     });
     
     res.json({
@@ -99,7 +101,8 @@ router.get('/health', async (req, res) => {
 router.get('/images/list', async (req, res) => {
   try {
     const response = await axios.get(`${AI_SERVICE_URL}/images/list`, {
-      timeout: 5000
+      timeout: 5000,
+      headers: { 'ngrok-skip-browser-warning': 'true' }
     });
     
     res.json(response.data);
@@ -139,7 +142,7 @@ router.post('/restyle', async (req, res) => {
 
     // Forward request to Python AI service
     const response = await axios.post(`${AI_SERVICE_URL}/restyle`, formData, {
-      headers: formData.getHeaders(),
+      headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
       timeout: 300000, // 5 minute timeout
       maxContentLength: Infinity,
       maxBodyLength: Infinity
@@ -211,7 +214,7 @@ router.post('/sketch-to-design', async (req, res) => {
 
     // Forward request to Python AI service
     const response = await axios.post(`${AI_SERVICE_URL}/sketch-to-design`, formData, {
-      headers: formData.getHeaders(),
+      headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
       timeout: 300000, // 5 minute timeout
       maxContentLength: Infinity,
       maxBodyLength: Infinity
