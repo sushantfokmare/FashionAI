@@ -22,9 +22,9 @@ services:
         generateValue: true  # Render will generate this
       - key: CLIENT_ORIGIN
         sync: false  # You'll add this manually after frontend is deployed
-      - key: MONGODB_URI
+      - key: MONGO_URI
         sync: false  # You'll add this after setting up MongoDB Atlas
 
 # Note: After deployment:
-# 1. Set up MongoDB Atlas and add MONGODB_URI
+# 1. Set up MongoDB Atlas and add MONGO_URI
 # 2. Deploy frontend to Vercel and add CLIENT_ORIGIN
