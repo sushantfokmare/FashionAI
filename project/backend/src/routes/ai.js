@@ -37,8 +37,15 @@ router.post('/generate', async (req, res) => {
       headers: { 'ngrok-skip-browser-warning': 'true' }
     });
 
+    // Transform localhost image URLs to use backend proxy
+    const data = response.data;
+    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
+      const filename = data.image_url.split('/images/').pop();
+      data.image_url = `/api/ai/images/${filename}`;
+    }
+
     // Return the response from Python service
-    res.json(response.data);
+    res.json(data);
 
   } catch (error) {
     console.error('AI Service error:', error.message);
@@ -105,7 +112,19 @@ router.get('/images/list', async (req, res) => {
       headers: { 'ngrok-skip-browser-warning': 'true' }
     });
     
-    res.json(response.data);
+    // Transform localhost URLs to use backend proxy
+    const data = response.data;
+    if (data.images && Array.isArray(data.images)) {
+      data.images = data.images.map(img => {
+        if (img.url && img.url.includes('localhost:8000/images/')) {
+          const filename = img.url.split('/images/').pop();
+          img.url = `/api/ai/images/${filename}`;
+        }
+        return img;
+      });
+    }
+    
+    res.json(data);
   } catch (error) {
     console.error('Failed to fetch images:', error.message);
     res.status(503).json({ 
@@ -148,7 +167,14 @@ router.post('/restyle', async (req, res) => {
       maxBodyLength: Infinity
     });
 
-    res.json(response.data);
+    // Transform localhost image URLs to use backend proxy
+    const data = response.data;
+    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
+      const filename = data.image_url.split('/images/').pop();
+      data.image_url = `/api/ai/images/${filename}`;
+    }
+
+    res.json(data);
 
   } catch (error) {
     console.error('Restyle error:', error.message);
@@ -220,8 +246,15 @@ router.post('/sketch-to-design', async (req, res) => {
       maxBodyLength: Infinity
     });
 
+    // Transform localhost image URLs to use backend proxy
+    const data = response.data;
+    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
+      const filename = data.image_url.split('/images/').pop();
+      data.image_url = `/api/ai/images/${filename}`;
+    }
+
     console.log('✅ Python service responded successfully');
-    res.json(response.data);
+    res.json(data);
 
   } catch (error) {
     console.error('❌ Sketch to design error:', error.message);
@@ -387,6 +420,29 @@ router.post('/occasion-styling', async (req, res) => {
     res.status(500).json({ 
       message: 'Failed to generate occasion outfits. Please try again.' 
     });
+  }
+});
+
+/**
+ * GET /api/ai/images/:filename
+ * Proxy generated images from AI service
+ */
+router.get('/images/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const response = await axios.get(`${AI_SERVICE_URL}/images/${filename}`, {
+      responseType: 'stream',
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    
+    // Forward content type
+    res.set('Content-Type', response.headers['content-type']);
+    
+    // Pipe image stream to response
+    response.data.pipe(res);
+  } catch (error) {
+    console.error('Generated image proxy error:', error.message);
+    res.status(404).json({ message: 'Image not found' });
   }
 });
 
