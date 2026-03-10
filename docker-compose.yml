@@ -21,7 +21,7 @@ services:
   # AI Service (Python FastAPI)
   ai-service:
     build:
-      context: ./services/ai-service
+      context: ./project/ai_service
       dockerfile: Dockerfile
     container_name: fashionai-ai-service
     restart: unless-stopped
@@ -32,9 +32,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./services/ai-service:/app
       - ./data:/app/data
       - ai_models:/app/models
+      - ai_generated:/app/generated_images
     networks:
       - fashionai-network
     depends_on:
@@ -51,20 +51,20 @@ services:
   # Backend API (Node.js Express)
   backend:
     build:
-      context: ./services/backend
+      context: ./project/backend
       dockerfile: Dockerfile
     container_name: fashionai-backend
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - MONGODB_URI=mongodb://mongodb:27017/fashionai
+      - MONGODB_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/${MONGO_DB:-fashionai}?authSource=admin
       - AI_SERVICE_URL=http://ai-service:8000
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - CLIENT_ORIGIN=http://localhost:3000
     ports:
       - "5000:5000"
     volumes:
-      - ./services/backend:/app
       - backend_uploads:/app/uploads
     networks:
       - fashionai-network
@@ -75,19 +75,15 @@ services:
   # Frontend (React + Vite)
   frontend:
     build:
-      context: ./services/frontend
+      context: ./project/frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=http://localhost:5000
+        - VITE_AI_SERVICE_URL=http://localhost:8000
     container_name: fashionai-frontend
     restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-      - VITE_API_URL=http://localhost:5000
-      - VITE_AI_SERVICE_URL=http://localhost:8000
     ports:
-      - "3000:3000"
-    volumes:
-      - ./services/frontend:/app
-      - frontend_node_modules:/app/node_modules
+      - "3000:80"
     networks:
       - fashionai-network
     depends_on:
@@ -118,9 +114,9 @@ volumes:
     driver: local
   ai_models:
     driver: local
-  backend_uploads:
+  ai_generated:
     driver: local
-  frontend_node_modules:
+  backend_uploads:
     driver: local
 
 networks:

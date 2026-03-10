@@ -48,6 +48,14 @@ build/
 .env.local
 .env.*.local
 *.env
+!.env.example
+!.env.production.example
+
+# SSL Certificates
+config/nginx/ssl/*.pem
+config/nginx/ssl/*.key
+config/nginx/ssl/*.crt
+!config/nginx/ssl/README.md
 
 # Logs
 logs/
@@ -67,6 +75,7 @@ pids/
 *.onnx
 *.faiss
 *.npy
+*.zip
 data/datasets/*
 !data/datasets/.gitkeep
 data/models/*
@@ -99,8 +108,10 @@ services/ai-service/models/*.pt
 !README_images/
 
 # Uploads & Generated
-uploads/
-generated_images/
+uploads/*
+!uploads/README.md
+generated_images/*
+!generated_images/README.md
 *.tmp
 temp/
 

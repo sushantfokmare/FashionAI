@@ -25,29 +25,23 @@ FashionAIStudio/
 │   ├── backend/             # Node.js/Express REST API
 │   └── frontend/            # React + TypeScript UI
 │
-├── 📁 docs/                  # Documentation
-│   ├── api/                 # API documentation
-│   ├── architecture/        # System design docs
-│   ├── deployment/          # Deployment guides
-│   └── development/         # Developer guides
-│
 ├── 📁 data/                  # Data directory (gitignored)
 │   ├── datasets/            # Training/test datasets
 │   ├── models/              # Pre-trained AI models
 │   └── samples/             # Sample data
 │
+├── 📁 config/                # Configuration files
+│   └── nginx/               # Nginx reverse proxy config
+│
 ├── 📁 scripts/               # Automation scripts
-│   ├── setup/               # Setup scripts
-│   └── dev/                 # Development utilities
-│
-├── 📁 config/                # Configuration
-│   └── env-examples/        # Environment templates
-│
 ├── 📁 tests/                 # Test suites
 │
 ├── .gitignore
-├── docker-compose.yml
+├── docker-compose.yml       # Local development
+├── docker-compose.prod.yml  # Production deployment
 ├── CONTRIBUTING.md
+└── README.md
+```
 ├── FRIEND_SETUP.md          # ⭐ Setup guide for new users
 └── README.md
 ```
@@ -98,36 +92,49 @@ npm run dev
 # Runs on http://localhost:5173
 ```
 
-### 🐳 Docker Setup (Optional)
+### 🐳 Docker Setup (Recommended)
 
+**Local Development:**
 ```bash
-# Prerequisites: Docker and Docker Compose installed
-
-# Start all services
+# 1. Start all services
 docker-compose up -d
 
-# View logs
-docker-compose logs -f
+# 2. Check status
+docker-compose ps
 
-# Stop services
-docker-compose down
+# 3. View logs
+docker-compose logs -f
 ```
+
+**Production Deployment:**
+```bash
+# 1. Copy and configure production environment
+cp .env.production.example .env
+# Edit .env with strong passwords and your domain
+
+# 2. Set up SSL certificates (see deployment guide)
+
+# 3. Deploy with nginx reverse proxy
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+**Access (Local):**
+- 🎨 Frontend: http://localhost:3000
+- 🔧 Backend: http://localhost:5000
+- 🤖 AI Service: http://localhost:8000/docs
+- 🗄️ MongoDB: localhost:27017
+
+**Access (Production):**
+- 🌐 Application: https://yourdomain.com
+- 📊 Health Check: https://yourdomain.com/health
+
+📖 **Deployment Guide:**
+- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](DEPLOYMENT_GUIDE_HYBRID.md) - Complete deployment guide (FREE cloud + local AI)
 
 ## 📚 Documentation
 
-### Quick Links
-
-- 🆕 **[FRIEND_SETUP.md](FRIEND_SETUP.md)** - ⭐ Complete setup guide for new users
-- 📖 [Quick Start Guide](docs/development/QUICKSTART.md) - Get started quickly
-- 🤝 [Contributing Guide](CONTRIBUTING.md) - How to contribute
-- 📋 [Documentation Index](docs/README.md) - All documentation
-
-### Detailed Docs
-
-- 🏗️ [Architecture](docs/architecture/) - System design
-- 🔌 [API Documentation](docs/api/) - Endpoint references
-- 🚀 [Deployment](docs/deployment/) - Setup & deployment
-- 👨‍💻 [Development](docs/development/) - Developer guides
+- 🤝 [CONTRIBUTING.md](CONTRIBUTING.md) - How to contribute to this project
+- 🚀 [DEPLOYMENT_GUIDE_HYBRID.md](DEPLOYMENT_GUIDE_HYBRID.md) - Deploy frontend/backend to cloud (FREE)
 
 ## 🛠️ Technology Stack
 
@@ -202,41 +209,43 @@ GET  /api/trends/*       - Trend data
 
 ```bash
 # AI Service tests
-cd services/ai-service
+cd project/ai_service
 pytest tests/ -v
 
 # Backend tests
-cd services/backend
+cd project/backend
 npm test
 
-# Frontend tescripts/`](scripts/):
+# Frontend tests
+cd project/frontend
+npm test
+```
+
+## 🛠️ Development Scripts
+
+```bash
+# Setup & Verification
+python scripts/setup/check_gpu.py           # Check GPU availability
+python scripts/setup/verify_setup.py        # Verify installation
 
 ```bash
 # Setup Scripts (scripts/setup/)
 python scripts/setup/check_gpu.py           # Verify CUDA/GPU availability
 python scripts/setup/verify_setup.py        # Validate complete installation
 
-# Development Utilities (scripts/dev/)
-.\scripts\dev\restart_backend.bat           # Restart backend service
-.\scripts\dev\setup_and_start.bat           # Full setup and start all services
-.\scripts\dev\install_pytorch_gpu.bat       # Install PyTorch with GPU support
+# Development Utilities
+.\scripts\dev\restart_backend.bat     # Restart backend service
+.\scripts\dev\setup_and_start.bat     # Full setup & start all services
 
-# Docker Utilities
-docker-compose up -d                        # Start all services
-docker-compose down                         # Stop all services
+# Docker
+docker-compose up -d                  # Start all services
+docker-compose down                   # Stop all services
+docker-compose logs -f                # View logs
 ```
 
-## 📁 Current Project Status
+## 🤝 Contributing
 
-### Directory Structure Transition
-
-The project is currently transitioning from `project/` to `services/` directory:
-
-**Active Services (Legacy - project/):**
-- Running in your terminals currently
-- `project/ai_service/` - Python AI serviceed guidelines.
-
-### Contribution Workflow
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Make changes in the `services/` directory (recommended)
@@ -291,58 +300,9 @@ This project is proprietary and confidential.
 - **RunwayML** - Stable Diffusion v1.5
 - The amazing open-source community
 
-## 🎯 Project Status
-
-**Current Version**: 1.0.0 (In Development)  
-**Last Updated**: January 2026  
-**Status**: Active Development - Restructuring Phase
-
-### Completed ✅
-- Core AI features (CLIP, FAISS, Stable Diffusion)
-- Basic frontend UI with React + TypeScript
-- Backend API with authentication
-- Docker containerization
-- Professional project structure
-
-### In Progress 🚧
-- Migrating from `project/` to `services/` directory
-- Documentation updates
-- Test coverage improvement
-- Performance optimization
-
-### Planned 📋
-- User dashboard enhancements
-- Advanced outfit recommendations
-- Mobile responsive design
-- CI/CD pipeline
-- Production deployment
-
----
-
-**Made with ❤️ by the FashionAI Studio Team**
-
-For more information, see:
-- [Documentation Index](DOCUMENTATION_INDEX.md)
-- [Project Structure](PROJECT_STRUCTURE_VISUAL.md)
-- [Migration Guide](MIGRATION_GUIDE.md)
-# Development utilities
-.\scripts\dev\restart_backend.bat     # Restart backend service
-.\scripts\dev\setup_and_start.bat     # Full setup & start
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## 📝 License
 
-This project is proprietary and confidential.
+This project is licensed under the MIT License.
 
 ## 👥 Team
 
@@ -350,14 +310,13 @@ This project is proprietary and confidential.
 
 ## 📞 Support
 
-- 📧 Email: support@fashionai.com
 - 🐛 [Report Issues](https://github.com/sushantfokmare/FashionAI/issues)
 - 💬 [Discussions](https://github.com/sushantfokmare/FashionAI/discussions)
 
 ## 🙏 Acknowledgments
 
 - OpenAI CLIP for image embeddings
-- Facebook FAISS for similarity search
+- Facebook FAISS for similarity search  
 - Stability AI for Stable Diffusion
 - The open-source community
 

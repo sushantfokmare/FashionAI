@@ -40,6 +40,10 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+// API Configuration - defaults to localhost for development
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
+
 type FeatureId =
   | 'prompt'
   | 'sketch'
@@ -827,7 +831,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
       }
       
       try {
-        const response = await fetch('http://localhost:5000/api/user/saved-designs', {
+        const response = await fetch(`${API_URL}/api/user/saved-designs`, {
           method: 'GET',
           credentials: 'include',
         });
@@ -904,7 +908,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
     if (!isAuthenticated) return;
     
     try {
-      await fetch('http://localhost:5000/api/analytics/track', {
+      await fetch(`${API_URL}/api/analytics/track`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -924,8 +928,8 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
     setTrendsError(null);
     try {
       const endpoint = view === 'global' 
-        ? 'http://localhost:5000/api/analytics/trends/global'
-        : 'http://localhost:5000/api/analytics/trends/personal';
+        ? `${API_URL}/api/analytics/trends/global`
+        : `${API_URL}/api/analytics/trends/personal`;
       
       const response = await fetch(endpoint, {
         method: 'GET',
@@ -978,7 +982,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
 
       try {
         // Call Node.js backend API
-        const response = await fetch('http://localhost:5000/api/ai/generate', {
+        const response = await fetch(`${API_URL}/api/ai/generate`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1053,7 +1057,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
     if (savedDesigns.includes(image)) return;
 
     try {
-      const response = await fetch('http://localhost:5000/api/user/saved-designs', {
+      const response = await fetch(`${API_URL}/api/user/saved-designs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1434,7 +1438,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
       formData.append('strength', strength.toString());
 
       // Call the API
-      const apiResponse = await fetch('http://localhost:5000/api/ai/sketch-to-design', {
+      const apiResponse = await fetch(`${API_URL}/api/ai/sketch-to-design`, {
         method: 'POST',
         body: formData,
       });
@@ -1501,7 +1505,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
       formData.append('strength', (variation / 100).toString());
 
       // Call the API
-      const apiResponse = await fetch('http://localhost:5000/api/ai/restyle', {
+      const apiResponse = await fetch(`${API_URL}/api/ai/restyle`, {
         method: 'POST',
         body: formData,
       });
@@ -3030,7 +3034,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
                                 return;
                               }
                               
-                              const response = await fetch('http://localhost:8000/recommend/text', {
+                              const response = await fetch(`${AI_SERVICE_URL}/recommend/text`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ query })

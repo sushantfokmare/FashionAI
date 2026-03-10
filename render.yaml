@@ -1,0 +1,30 @@
+# Render Blueprint for FashionAI Backend
+# This file enables one-click deployment to Render
+
+services:
+  # Backend API Service
+  - type: web
+    name: fashionai-backend
+    env: node
+    region: oregon  # Change to your preferred region
+    plan: free
+    buildCommand: cd project/backend && npm install
+    startCommand: cd project/backend && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: AI_SERVICE_URL
+        value: https://interlinearly-intergular-adolfo.ngrok-free.dev
+      - key: JWT_SECRET
+        generateValue: true  # Render will generate this
+      - key: CLIENT_ORIGIN
+        sync: false  # You'll add this manually after frontend is deployed
+      - key: MONGODB_URI
+        sync: false  # You'll add this after setting up MongoDB Atlas
+
+# Note: After deployment:
+# 1. Set up MongoDB Atlas and add MONGODB_URI
+# 2. Deploy frontend to Vercel and add CLIENT_ORIGIN

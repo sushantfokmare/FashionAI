@@ -1,0 +1,33 @@
+# Don't copy these into Docker image
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+env/
+.env
+.env.*
+*.log
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+
+# Don't copy large model files (download them at runtime)
+models/*
+!models/.gitkeep
+
+# Don't copy generated files
+generated_images/*
+!generated_images/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# Don't copy datasets (mount as volume)
+data/fashion_dataset/images/*
+clip_faiss/index.faiss
+clip_faiss/meta.npy
