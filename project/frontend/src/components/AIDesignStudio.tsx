@@ -1031,7 +1031,10 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
 
         if (statusData.status === 'completed') {
           // Success! Add image to list
-          setGeneratedImages([statusData.result.image_url, ...generatedImages]);
+          const imageUrl = statusData.result.image_url.startsWith('http') 
+            ? statusData.result.image_url 
+            : `${API_URL}${statusData.result.image_url}`;
+          setGeneratedImages([imageUrl, ...generatedImages]);
           
           // Track search for analytics
           trackSearch({
@@ -1503,7 +1506,10 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
         const statusData = await statusResponse.json();
 
         if (statusData.status === 'completed') {
-          setDesignFromSketchUrl(statusData.result.image_url);
+          const imageUrl = statusData.result.image_url.startsWith('http') 
+            ? statusData.result.image_url 
+            : `${API_URL}${statusData.result.image_url}`;
+          setDesignFromSketchUrl(imageUrl);
           console.log('Sketch-to-design completed:', statusData.result.image_url);
         } else if (statusData.status === 'failed') {
           throw new Error(statusData.error || 'Sketch-to-design failed');
@@ -1614,7 +1620,10 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
         const statusData = await statusResponse.json();
 
         if (statusData.status === 'completed') {
-          setRestyledUrl(statusData.result.image_url);
+          const imageUrl = statusData.result.image_url.startsWith('http') 
+            ? statusData.result.image_url 
+            : `${API_URL}${statusData.result.image_url}`;
+          setRestyledUrl(imageUrl);
 
           // Track restyle search for analytics
           trackSearch({
