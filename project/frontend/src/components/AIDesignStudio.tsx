@@ -42,7 +42,6 @@ import { useAuth } from '../context/AuthContext';
 
 // API Configuration - defaults to localhost for development
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const AI_SERVICE_URL = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:8000';
 
 type FeatureId =
   | 'prompt'
