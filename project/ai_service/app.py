@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Optional, List
 import random
 import torch
+import os
 from contextlib import asynccontextmanager
 from diffusers import AutoPipelineForText2Image
 from diffusers import StableDiffusionImg2ImgPipeline
@@ -22,10 +23,19 @@ from diffusers import EulerAncestralDiscreteScheduler
 from PIL import Image
 from collections import defaultdict
 import shutil
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 # Import CLIP-FAISS recommendation engine
 from clip_faiss.engine import RecommendationEngine
 import math
+
+# -------------------------------------------------
+# Background job tracking
+# -------------------------------------------------
+generation_jobs = {}  # {job_id: {"status": "processing/completed/failed", "result": {...}, "error": None}}
+job_lock = threading.Lock()
+executor = ThreadPoolExecutor(max_workers=1)  # One generation at a time, but non-blocking for API
 
 # -------------------------------------------------
 # Helper function for data cleaning
@@ -169,8 +179,92 @@ async def root():
     }
 
 
-@app.post("/generate", response_model=DesignResponse)
+# -------------------------------------------------
+# Background generation function
+# -------------------------------------------------
+def _generate_design_background(job_id: str, request_data: dict):
+    """Background task for Stable Diffusion generation"""
+    global pipe
+    
+    try:
+        logger.info(f"[Job {job_id}] Starting background generation")
+        
+        design_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+
+        # Prompt construction
+        prompt = (
+            f"Fashion photography of a model wearing {request_data['topwear']} "
+            f"and {request_data['bottomwear']}. "
+        )
+
+        if request_data.get('accessories'):
+            prompt += f"Accessories: {request_data['accessories']}. "
+
+        if request_data.get('style'):
+            prompt += f"Style: {request_data['style']}. "
+
+        if request_data.get('color_palette'):
+            colors = ", ".join(request_data['color_palette'])
+            prompt += f"Color palette: {colors}. "
+
+        prompt += (
+            "Photorealistic, professional lighting, high quality, "
+            "sharp focus, fashion editorial, studio photography."
+        )
+
+        negative_prompt = (
+            "blurry, low quality, bad anatomy, deformed, extra limbs, "
+            "overexposed, underexposed"
+        )
+
+        seed = random.randint(0, 2**32 - 1)
+        logger.info(f"[Job {job_id}] Seed: {seed}")
+
+        # Image generation (CPU only) - this is the blocking part
+        logger.info(f"[Job {job_id}] Running Stable Diffusion with 20 steps...")
+        images = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            guidance_scale=7.5,
+            num_inference_steps=20,
+            generator=torch.Generator("cpu").manual_seed(seed)
+        ).images
+        logger.info(f"[Job {job_id}] Image generation completed")
+
+        # Save image
+        filename = f"design_{design_id[:8]}.jpg"
+        output_path = OUTPUT_DIR / filename
+        images[0].save(output_path)
+
+        image_url = f"http://localhost:8000/images/{filename}"
+        logger.info(f"[Job {job_id}] Image saved: {filename}")
+
+        # Update job status
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "completed",
+                "result": {
+                    "image_url": image_url,
+                    "design_id": design_id,
+                    "timestamp": timestamp
+                },
+                "error": None
+            }
+        
+    except Exception as e:
+        logger.error(f"[Job {job_id}] Generation failed: {str(e)}")
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "failed",
+                "result": None,
+                "error": str(e)
+            }
+
+
+@app.post("/generate")
 async def generate_design(request: DesignRequest):
+    """Submit design generation job - returns immediately with job_id"""
     global pipe
 
     if pipe is None:
@@ -181,69 +275,50 @@ async def generate_design(request: DesignRequest):
 
     logger.info(f"Generating design: {request.dict()}")
 
-    design_id = str(uuid.uuid4())
-    timestamp = datetime.now().isoformat()
-
-    # ---------------------------
-    # Prompt construction
-    # ---------------------------
-    prompt = (
-        f"Fashion photography of a model wearing {request.topwear} "
-        f"and {request.bottomwear}. "
-    )
-
-    if request.accessories:
-        prompt += f"Accessories: {request.accessories}. "
-
-    if request.style:
-        prompt += f"Style: {request.style}. "
-
-    if request.color_palette:
-        colors = ", ".join(request.color_palette)
-        prompt += f"Color palette: {colors}. "
-
-    prompt += (
-        "Photorealistic, professional lighting, high quality, "
-        "sharp focus, fashion editorial, studio photography."
-    )
-
-    negative_prompt = (
-        "blurry, low quality, bad anatomy, deformed, extra limbs, "
-        "overexposed, underexposed"
-    )
-
-    seed = random.randint(0, 2**32 - 1)
-    logger.info(f"Seed: {seed}")
-
-    # ---------------------------
-    # Image generation (CPU only)
-    # ---------------------------
-    logger.info(f"Starting image generation with {30} inference steps...")
-    images = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        guidance_scale=7.5,
-        num_inference_steps=20,  # Optimized for best quality designs
-        generator=torch.Generator("cpu").manual_seed(seed)
-    ).images
-    logger.info("Image generation completed")
-
-    # ---------------------------
-    # Save image
-    # ---------------------------
-    filename = f"design_{design_id[:8]}.jpg"
-    output_path = OUTPUT_DIR / filename
-    images[0].save(output_path)
-
-    image_url = f"http://localhost:8000/images/{filename}"
-
-    logger.info(f"Image generated: {filename}")
-
+    # Create job ID
+    job_id = str(uuid.uuid4())
+    
+    # Initialize job status
+    with job_lock:
+        generation_jobs[job_id] = {
+            "status": "processing",
+            "result": None,
+            "error": None
+        }
+    
+    # Submit to background thread
+    request_data = request.dict()
+    executor.submit(_generate_design_background, job_id, request_data)
+    
+    logger.info(f"[Job {job_id}] Submitted to background processing")
+    
     return {
-        "image_url": image_url,
-        "design_id": design_id,
-        "timestamp": timestamp
+        "job_id": job_id,
+        "status": "processing",
+        "message": "Design generation started. Use /generate/status/{job_id} to check progress."
     }
+
+
+@app.get("/generate/status/{job_id}")
+async def get_generation_status(job_id: str):
+    """Poll for generation job status"""
+    with job_lock:
+        if job_id not in generation_jobs:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        job = generation_jobs[job_id]
+    
+    response = {
+        "job_id": job_id,
+        "status": job["status"]
+    }
+    
+    if job["status"] == "completed":
+        response["result"] = job["result"]
+    elif job["status"] == "failed":
+        response["error"] = job["error"]
+    
+    return response
 
 
 @app.get("/health")
@@ -306,23 +381,62 @@ async def restyle_image(
             detail="Image-to-Image model not loaded"
         )
 
+    # Create job ID
+    job_id = str(uuid.uuid4())
+    
+    # Save uploaded image temporarily
+    temp_input_path = OUTPUT_DIR / f"input_{job_id[:8]}.png"
+    with open(temp_input_path, "wb") as f:
+        f.write(await image.read())
+    
+    # Initialize job status
+    with job_lock:
+        generation_jobs[job_id] = {
+            "status": "processing",
+            "result": None,
+            "error": None
+        }
+    
+    # Submit to background thread
+    request_data = {
+        "input_path": str(temp_input_path),
+        "prompt": prompt,
+        "strength": strength,
+        "endpoint": "restyle"
+    }
+    executor.submit(_restyle_background, job_id, request_data)
+    
+    logger.info(f"[Job {job_id}] Restyle submitted to background processing")
+    
+    return {
+        "job_id": job_id,
+        "status": "processing",
+        "message": "Restyle started. Use /generate/status/{job_id} to check progress."
+    }
+
+
+def _restyle_background(job_id: str, request_data: dict):
+    """Background task for image restyling"""
+    global pipe
+    
     try:
-        # Load input image
-        init_image = Image.open(image.file).convert("RGB")
+        logger.info(f"[Job {job_id}] Starting background restyle")
         
-        # Resize to 512x512 for optimal quality and performance
+        # Load input image
+        input_path = Path(request_data["input_path"])
+        init_image = Image.open(input_path).convert("RGB")
         init_image = init_image.resize((512, 512))
         
-        logger.info(f"Restyling image with prompt: '{prompt}', strength: {strength}")
+        logger.info(f"[Job {job_id}] Restyling with prompt: '{request_data['prompt']}', strength: {request_data['strength']}")
 
-        # Convert to image-to-image mode and generate restyled image
+        # Convert to image-to-image mode and generate
         from diffusers import AutoPipelineForImage2Image
         img2img_pipe = AutoPipelineForImage2Image.from_pipe(pipe)
         
         result = img2img_pipe(
-            prompt=prompt,
+            prompt=request_data["prompt"],
             image=init_image,
-            strength=float(strength),
+            strength=float(request_data["strength"]),
             guidance_scale=7.5,
             num_inference_steps=20
         ).images[0]
@@ -332,21 +446,35 @@ async def restyle_image(
         output_path = OUTPUT_DIR / filename
         result.save(output_path)
 
+        # Clean up temp input
+        try:
+            input_path.unlink()
+        except:
+            pass
+
         image_url = f"http://localhost:8000/images/{filename}"
-        logger.info(f"Restyle complete: {filename}")
+        logger.info(f"[Job {job_id}] Restyle complete: {filename}")
 
-        return {
-            "image_url": image_url,
-            "filename": filename,
-            "timestamp": datetime.now().isoformat()
-        }
-
+        # Update job status
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "completed",
+                "result": {
+                    "image_url": image_url,
+                    "filename": filename,
+                    "timestamp": datetime.now().isoformat()
+                },
+                "error": None
+            }
+        
     except Exception as e:
-        logger.error(f"Restyle error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to restyle image: {str(e)}"
-        )
+        logger.error(f"[Job {job_id}] Restyle failed: {str(e)}")
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "failed",
+                "result": None,
+                "error": str(e)
+            }
 
 
 @app.post("/sketch-to-design")
@@ -372,28 +500,64 @@ async def sketch_to_design_api(
             detail="Image-to-Image model not loaded"
         )
 
+    # Create job ID
+    job_id = str(uuid.uuid4())
+    
+    # Save uploaded sketch temporarily
+    sketch_path = OUTPUT_DIR / f"sketch_{job_id[:8]}.png"
+    with open(sketch_path, "wb") as f:
+        f.write(await sketch.read())
+    
+    logger.info(f"[Job {job_id}] Sketch uploaded: {sketch_path.name}")
+    
+    # Initialize job status
+    with job_lock:
+        generation_jobs[job_id] = {
+            "status": "processing",
+            "result": None,
+            "error": None
+        }
+    
+    # Submit to background thread
+    request_data = {
+        "sketch_path": str(sketch_path),
+        "prompt": prompt,
+        "strength": strength,
+        "endpoint": "sketch-to-design"
+    }
+    executor.submit(_sketch_to_design_background, job_id, request_data)
+    
+    logger.info(f"[Job {job_id}] Sketch-to-design submitted to background processing")
+    
+    return {
+        "job_id": job_id,
+        "status": "processing",
+        "message": "Sketch to design started. Use /generate/status/{job_id} to check progress."
+    }
+
+
+def _sketch_to_design_background(job_id: str, request_data: dict):
+    """Background task for sketch-to-design conversion"""
+    global pipe
+    
     try:
-        # Save uploaded sketch temporarily
-        sketch_path = OUTPUT_DIR / f"sketch_{uuid.uuid4().hex[:8]}.png"
-        with open(sketch_path, "wb") as f:
-            f.write(await sketch.read())
-        
-        logger.info(f"Processing sketch: {sketch_path.name}")
+        logger.info(f"[Job {job_id}] Starting background sketch-to-design")
         
         # Load and prepare sketch image
+        sketch_path = Path(request_data["sketch_path"])
         init_image = Image.open(sketch_path).convert("RGB")
         init_image = init_image.resize((512, 512))
         
-        logger.info(f"Generating design from sketch with prompt: '{prompt}', strength: {strength}")
+        logger.info(f"[Job {job_id}] Generating design from sketch with prompt: '{request_data['prompt']}', strength: {request_data['strength']}")
 
-        # Convert to image-to-image mode and generate design from sketch
+        # Convert to image-to-image mode and generate
         from diffusers import AutoPipelineForImage2Image
         img2img_pipe = AutoPipelineForImage2Image.from_pipe(pipe)
         
         result = img2img_pipe(
-            prompt=prompt,
+            prompt=request_data["prompt"],
             image=init_image,
-            strength=float(strength),
+            strength=float(request_data["strength"]),
             guidance_scale=7.5,
             num_inference_steps=20
         ).images[0]
@@ -403,27 +567,35 @@ async def sketch_to_design_api(
         output_path = OUTPUT_DIR / output_name
         result.save(output_path)
 
-        # Clean up temporary sketch file (optional)
+        # Clean up temporary sketch file
         try:
             sketch_path.unlink()
         except:
             pass
 
         image_url = f"http://localhost:8000/images/{output_name}"
-        logger.info(f"Sketch to design complete: {output_name}")
+        logger.info(f"[Job {job_id}] Sketch to design complete: {output_name}")
 
-        return {
-            "image_url": image_url,
-            "filename": output_name,
-            "timestamp": datetime.now().isoformat()
-        }
-
+        # Update job status
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "completed",
+                "result": {
+                    "image_url": image_url,
+                    "filename": output_name,
+                    "timestamp": datetime.now().isoformat()
+                },
+                "error": None
+            }
+        
     except Exception as e:
-        logger.error(f"Sketch to design error: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to convert sketch to design: {str(e)}"
-        )
+        logger.error(f"[Job {job_id}] Sketch to design failed: {str(e)}")
+        with job_lock:
+            generation_jobs[job_id] = {
+                "status": "failed",
+                "result": None,
+                "error": str(e)
+            }
 
 
 # -------------------------------------------------

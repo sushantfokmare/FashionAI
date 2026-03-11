@@ -976,66 +976,90 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
     setGenerationError(null);
 
     try {
-      // Create AbortController for timeout handling
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+      // Submit generation job
+      const response = await fetch(`${API_URL}/api/ai/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          topwear: topwear.trim(),
+          bottomwear: bottomwear.trim(),
+          accessories: accessories.trim() || undefined,
+          style: designStyle.trim() || undefined,
+        }),
+      });
 
-      try {
-        // Call Node.js backend API
-        const response = await fetch(`${API_URL}/api/ai/generate`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include', // Include cookies for auth
-          signal: controller.signal,
-          body: JSON.stringify({
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to start generation');
+      }
+
+      const jobData = await response.json();
+      
+      if (!jobData.job_id) {
+        throw new Error('No job ID received from server');
+      }
+
+      console.log('Generation job started:', jobData.job_id);
+
+      // Poll for job completion
+      const pollInterval = 2000; // Poll every 2 seconds
+      const maxAttempts = 150; // 5 minutes max (150 * 2 seconds)
+      let attempts = 0;
+
+      const poll = async (): Promise<void> => {
+        if (attempts >= maxAttempts) {
+          throw new Error('Generation timed out. Please try again.');
+        }
+
+        attempts++;
+
+        const statusResponse = await fetch(
+          `${API_URL}/api/ai/generate/status/${jobData.job_id}`,
+          {
+            credentials: 'include',
+          }
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check generation status');
+        }
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === 'completed') {
+          // Success! Add image to list
+          setGeneratedImages([statusData.result.image_url, ...generatedImages]);
+          
+          // Track search for analytics
+          trackSearch({
+            searchType: 'design',
             topwear: topwear.trim(),
             bottomwear: bottomwear.trim(),
             accessories: accessories.trim() || undefined,
             style: designStyle.trim() || undefined,
-          }),
-        });
-        
-        clearTimeout(timeoutId);
-
-      // Check content type before parsing
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Backend service is not responding correctly. Please ensure Node.js backend is running on port 5000.');
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to generate design');
-      }
-
-      const data = await response.json();
-      
-      // Add the generated image to the list
-      setGeneratedImages([data.image_url, ...generatedImages]);
-      
-      // Track search for analytics
-      trackSearch({
-        searchType: 'design',
-        topwear: topwear.trim(),
-        bottomwear: bottomwear.trim(),
-        accessories: accessories.trim() || undefined,
-        style: designStyle.trim() || undefined,
-      });
-      
-      // Clear form fields
-      setTopwear('');
-      setBottomwear('');
-      setAccessories('');
-      setDesignStyle('');
-      
-      } catch (fetchError) {
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          throw new Error('Generation timed out. The AI service is taking too long. Please try again.');
+          });
+          
+          // Clear form fields
+          setTopwear('');
+          setBottomwear('');
+          setAccessories('');
+          setDesignStyle('');
+          
+          console.log('Generation completed:', statusData.result.image_url);
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Generation failed');
+        } else {
+          // Still processing, poll again
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          await poll();
         }
-        throw fetchError;
-      }
+      };
+
+      await poll();
+      
     } catch (error) {
       console.error('Generation error:', error);
       setGenerationError(
@@ -1437,7 +1461,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
       formData.append('prompt', sketchPrompt);
       formData.append('strength', strength.toString());
 
-      // Call the API
+      // Submit sketch-to-design job
       const apiResponse = await fetch(`${API_URL}/api/ai/sketch-to-design`, {
         method: 'POST',
         body: formData,
@@ -1448,8 +1472,49 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
         throw new Error(errorData.message || `API error: ${apiResponse.status}`);
       }
 
-      const data = await apiResponse.json();
-      setDesignFromSketchUrl(data.image_url);
+      const jobData = await apiResponse.json();
+      
+      if (!jobData.job_id) {
+        throw new Error('No job ID received from server');
+      }
+
+      console.log('Sketch-to-design job started:', jobData.job_id);
+
+      // Poll for job completion
+      const pollInterval = 2000;
+      const maxAttempts = 150;
+      let attempts = 0;
+
+      const poll = async (): Promise<void> => {
+        if (attempts >= maxAttempts) {
+          throw new Error('Sketch-to-design timed out. Please try again.');
+        }
+
+        attempts++;
+
+        const statusResponse = await fetch(
+          `${API_URL}/api/ai/generate/status/${jobData.job_id}`
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check sketch-to-design status');
+        }
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === 'completed') {
+          setDesignFromSketchUrl(statusData.result.image_url);
+          console.log('Sketch-to-design completed:', statusData.result.image_url);
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Sketch-to-design failed');
+        } else {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          await poll();
+        }
+      };
+
+      await poll();
+
     } catch (error) {
       console.error('Sketch to design error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate design from sketch.';
@@ -1504,7 +1569,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
       formData.append('prompt', restylePrompt?.trim() || 'fashion restyle');
       formData.append('strength', (variation / 100).toString());
 
-      // Call the API
+      // Submit restyle job
       const apiResponse = await fetch(`${API_URL}/api/ai/restyle`, {
         method: 'POST',
         body: formData,
@@ -1512,17 +1577,61 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
 
       if (!apiResponse.ok) {
         const errorData = await apiResponse.json();
-        throw new Error(errorData.message || 'Failed to restyle image');
+        throw new Error(errorData.message || 'Failed to start restyle');
       }
 
-      const data = await apiResponse.json();
-      setRestyledUrl(data.image_url);
+      const jobData = await apiResponse.json();
+      
+      if (!jobData.job_id) {
+        throw new Error('No job ID received from server');
+      }
 
-      // Track restyle search for analytics
-      trackSearch({
-        searchType: 'restyle',
-        restylePrompt: restylePrompt?.trim() || 'fashion restyle',
-      });
+      console.log('Restyle job started:', jobData.job_id);
+
+      // Poll for job completion
+      const pollInterval = 2000;
+      const maxAttempts = 150;
+      let attempts = 0;
+
+      const poll = async (): Promise<void> => {
+        if (attempts >= maxAttempts) {
+          throw new Error('Restyle timed out. Please try again.');
+        }
+
+        attempts++;
+
+        const statusResponse = await fetch(
+          `${API_URL}/api/ai/generate/status/${jobData.job_id}`,
+          {
+            credentials: 'include',
+          }
+        );
+
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check restyle status');
+        }
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.status === 'completed') {
+          setRestyledUrl(statusData.result.image_url);
+
+          // Track restyle search for analytics
+          trackSearch({
+            searchType: 'restyle',
+            restylePrompt: restylePrompt?.trim() || 'fashion restyle',
+          });
+
+          console.log('Restyle completed:', statusData.result.image_url);
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Restyle failed');
+        } else {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          await poll();
+        }
+      };
+
+      await poll();
 
     } catch (error: any) {
       console.error('Restyle error:', error);

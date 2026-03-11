@@ -33,19 +33,12 @@ router.post('/generate', async (req, res) => {
       style,
       color_palette
     }, {
-      timeout: 300000, // 5 minute timeout for AI generation (CPU can be slow)
+      timeout: 10000, // 10 second timeout - just to submit job, not wait for completion
       headers: { 'ngrok-skip-browser-warning': 'true' }
     });
 
-    // Transform localhost image URLs to use backend proxy
-    const data = response.data;
-    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
-      const filename = data.image_url.split('/images/').pop();
-      data.image_url = `/api/ai/images/${filename}`;
-    }
-
-    // Return the response from Python service
-    res.json(data);
+    // Return job_id immediately (no URL transformation needed for job response)
+    res.json(response.data);
 
   } catch (error) {
     console.error('AI Service error:', error.message);
@@ -73,6 +66,52 @@ router.post('/generate', async (req, res) => {
     // Generic error
     res.status(500).json({ 
       message: 'Failed to generate design. Please try again.' 
+    });
+  }
+});
+
+/**
+ * GET /api/ai/generate/status/:job_id
+ * Poll for generation job status
+ */
+router.get('/generate/status/:job_id', async (req, res) => {
+  try {
+    const { job_id } = req.params;
+
+    const response = await axios.get(`${AI_SERVICE_URL}/generate/status/${job_id}`, {
+      timeout: 5000,
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+
+    const data = response.data;
+    
+    // Transform localhost image URLs in completed results
+    if (data.status === 'completed' && data.result && data.result.image_url) {
+      if (data.result.image_url.includes('localhost:8000/images/')) {
+        const filename = data.result.image_url.split('/images/').pop();
+        data.result.image_url = `/api/ai/images/${filename}`;
+      }
+    }
+
+    res.json(data);
+
+  } catch (error) {
+    console.error('Job status error:', error.message);
+    
+    if (error.response && error.response.status === 404) {
+      return res.status(404).json({ 
+        message: 'Job not found' 
+      });
+    }
+    
+    if (error.code === 'ECONNREFUSED') {
+      return res.status(503).json({ 
+        message: 'AI service is unavailable' 
+      });
+    }
+
+    res.status(500).json({ 
+      message: 'Failed to check job status' 
     });
   }
 });
@@ -162,19 +201,13 @@ router.post('/restyle', async (req, res) => {
     // Forward request to Python AI service
     const response = await axios.post(`${AI_SERVICE_URL}/restyle`, formData, {
       headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
-      timeout: 300000, // 5 minute timeout
+      timeout: 10000, // 10 second timeout - just to submit job
       maxContentLength: Infinity,
       maxBodyLength: Infinity
     });
 
-    // Transform localhost image URLs to use backend proxy
-    const data = response.data;
-    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
-      const filename = data.image_url.split('/images/').pop();
-      data.image_url = `/api/ai/images/${filename}`;
-    }
-
-    res.json(data);
+    // Return job_id immediately
+    res.json(response.data);
 
   } catch (error) {
     console.error('Restyle error:', error.message);
@@ -241,20 +274,14 @@ router.post('/sketch-to-design', async (req, res) => {
     // Forward request to Python AI service
     const response = await axios.post(`${AI_SERVICE_URL}/sketch-to-design`, formData, {
       headers: { ...formData.getHeaders(), 'ngrok-skip-browser-warning': 'true' },
-      timeout: 300000, // 5 minute timeout
+      timeout: 10000, // 10 second timeout - just to submit job
       maxContentLength: Infinity,
       maxBodyLength: Infinity
     });
 
-    // Transform localhost image URLs to use backend proxy
-    const data = response.data;
-    if (data.image_url && data.image_url.includes('localhost:8000/images/')) {
-      const filename = data.image_url.split('/images/').pop();
-      data.image_url = `/api/ai/images/${filename}`;
-    }
-
+    // Return job_id immediately
     console.log('✅ Python service responded successfully');
-    res.json(data);
+    res.json(response.data);
 
   } catch (error) {
     console.error('❌ Sketch to design error:', error.message);
