@@ -860,6 +860,7 @@ async def occasion_styling(request: OccasionRequest):
             occasion=request.occasion,
             outfit_type=request.outfit_type,
             gender=request.gender,
+            style=request.style,  # Now properly used!
             color_pref=request.color,
             season=request.season
         )
