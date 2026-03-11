@@ -1052,6 +1052,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
           setDesignStyle('');
           
           console.log('Generation completed:', statusData.result.image_url);
+          return; // Exit polling loop
         } else if (statusData.status === 'failed') {
           throw new Error(statusData.error || 'Generation failed');
         } else {
@@ -1511,6 +1512,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
             : `${API_URL}${statusData.result.image_url}`;
           setDesignFromSketchUrl(imageUrl);
           console.log('Sketch-to-design completed:', statusData.result.image_url);
+          return; // Exit polling loop
         } else if (statusData.status === 'failed') {
           throw new Error(statusData.error || 'Sketch-to-design failed');
         } else {
@@ -1632,6 +1634,7 @@ export const AIDesignStudio = ({ onAuthRequired }: AIDesignStudioProps) => {
           });
 
           console.log('Restyle completed:', statusData.result.image_url);
+          return; // Exit polling loop
         } else if (statusData.status === 'failed') {
           throw new Error(statusData.error || 'Restyle failed');
         } else {
