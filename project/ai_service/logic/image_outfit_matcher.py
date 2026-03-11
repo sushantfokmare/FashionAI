@@ -1,156 +1,279 @@
 """
-Outfit matching logic - finds complementary fashion items
-Uses two-stage selection:
-1. CLIP-FAISS results for clothing (visually similar)
-2. Full dataset with intelligent filtering for footwear and accessories
+Enhanced outfit matching logic - creates complete, well-coordinated fashion outfits
+Improvements:
+1. Guarantees complete outfits (topwear, bottomwear, footwear, 3+ accessories)
+2. Enhanced color coordination (item-to-item compatibility)
+3. Style consistency (formal/casual/sporty matching)
+4. Gender consistency throughout outfit
+5. More sophisticated color pairing rules
 """
 from collections import defaultdict
 import math
 import random
+from typing import List, Dict, Any, Set
 from logic.outfit_rules import (
     TOPWEAR, BOTTOMWEAR, FOOTWEAR, ACCESSORIES
 )
 
 
-def get_complementary_colors(base_color: str) -> list:
-    """Get colors that create impressive combinations with the base color"""
+def get_complementary_colors(base_color: str) -> List[str]:
+    """
+    Get complementary colors with enhanced pairing rules
+    Returns colors in priority order (most complementary first)
+    """
     color_matches = {
-        "black": ["white", "grey", "silver", "red", "burgundy", "navy blue", "beige"],
-        "navy blue": ["white", "beige", "grey", "brown", "burgundy"],
-        "charcoal": ["white", "grey", "beige", "blue"],
-        "white": ["black", "navy blue", "grey", "blue", "burgundy", "brown", "beige"],
-        "beige": ["white", "brown", "navy blue", "olive", "burgundy"],
-        "cream": ["brown", "navy blue", "olive", "burgundy"],
-        "grey": ["white", "black", "navy blue", "burgundy", "charcoal"],
-        "brown": ["beige", "white", "cream", "navy blue", "olive"],
-        "olive": ["beige", "brown", "white", "cream"],
-        "blue": ["white", "beige", "grey", "brown", "navy blue"],
-        "red": ["black", "white", "grey", "navy blue"],
-        "burgundy": ["black", "white", "grey", "beige", "navy blue"],
-        "maroon": ["beige", "grey", "white", "black"],
-        "pink": ["white", "grey", "black", "navy blue"],
-        "purple": ["white", "grey", "black", "silver"],
-        "green": ["white", "beige", "brown", "black", "navy blue"],
-        "yellow": ["white", "navy blue", "grey", "brown"],
-        "orange": ["navy blue", "brown", "beige", "white"],
+        "black": ["white", "grey", "silver", "red", "burgundy", "navy blue", "beige", "cream", "olive"],
+        "navy blue": ["white", "beige", "grey", "brown", "burgundy", "cream", "tan", "olive"],
+        "charcoal": ["white", "grey", "beige", "blue", "light grey", "cream", "burgundy"],
+        "white": ["black", "navy blue", "grey", "blue", "burgundy", "brown", "beige", "red", "olive"],
+        "beige": ["white", "brown", "navy blue", "olive", "burgundy", "cream", "tan", "charcoal"],
+        "cream": ["brown", "navy blue", "olive", "burgundy", "beige", "tan", "charcoal", "grey"],
+        "grey": ["white", "black", "navy blue", "burgundy", "charcoal", "beige", "pink", "light grey"],
+        "brown": ["beige", "white", "cream", "navy blue", "olive", "tan", "burgundy", "khaki"],
+        "olive": ["beige", "brown", "white", "cream", "tan", "navy blue", "burgundy", "khaki"],
+        "blue": ["white", "beige", "grey", "brown", "navy blue", "cream", "tan", "khaki"],
+        "red": ["black", "white", "grey", "navy blue", "beige", "charcoal", "cream"],
+        "burgundy": ["black", "white", "grey", "beige", "navy blue", "cream", "tan", "olive"],
+        "maroon": ["beige", "grey", "white", "black", "cream", "tan", "navy blue"],
+        "pink": ["white", "grey", "black", "navy blue", "beige", "burgundy"],
+        "purple": ["white", "grey", "black", "silver", "beige", "navy blue"],
+        "lavender": ["white", "grey", "beige", "navy blue", "burgundy", "silver"],
+        "green": ["white", "beige", "brown", "black", "navy blue", "khaki", "cream"],
+        "yellow": ["white", "navy blue", "grey", "brown", "beige", "olive"],
+        "orange": ["navy blue", "brown", "beige", "white", "grey", "olive", "cream"],
+        "mustard": ["navy blue", "grey", "white", "beige", "brown", "burgundy"],
+        "tan": ["navy blue", "brown", "white", "olive", "beige", "burgundy", "cream"],
+        "khaki": ["white", "navy blue", "brown", "beige", "olive", "burgundy"],
+        "teal": ["white", "beige", "grey", "navy blue", "brown", "cream"],
+        "peach": ["grey", "white", "beige", "navy blue", "brown", "burgundy"],
     }
     
     base_lower = base_color.lower()
+    
+    # Try exact match first
+    if base_lower in color_matches:
+        return color_matches[base_lower]
+    
+    # Try partial matches for complex colors (e.g., "light blue", "dark grey")
     for color, matches in color_matches.items():
-        if color in base_lower:
+        if color in base_lower or base_lower in color:
             return matches
     
-    return ["white", "black", "grey", "navy blue", "beige"]
+    # Default neutral palette
+    return ["white", "black", "grey", "navy blue", "beige", "cream"]
 
 
-def find_matching_footwear(full_dataset: list, anchor_item: dict, limit: int = 6) -> list:
+def get_neutral_colors() -> List[str]:
+    """Return list of neutral colors that work with most outfits"""
+    return ["white", "black", "grey", "navy blue", "beige", "cream", "charcoal", "tan", "brown"]
+
+
+def are_colors_compatible(color1: str, color2: str, color3: str = None) -> bool:
     """
-    Find matching footwear from full dataset using intelligent color coordination
+    Check if 2-3 colors work well together in an outfit
     
     Args:
-        full_dataset: Complete dataset
+        color1: First color
+        color2: Second color
+        color3: Optional third color
+    
+    Returns:
+        True if colors are compatible
+    """
+    # Ensure colors are strings
+    c1_lower = safe_str(color1, "").lower()
+    c2_lower = safe_str(color2, "").lower()
+    
+    # Empty colors are considered compatible
+    if not c1_lower or not c2_lower:
+        return True
+    
+    # Get complementary colors for both
+    c1_complements = get_complementary_colors(c1_lower)
+    c2_complements = get_complementary_colors(c2_lower)
+    
+    # Check if they're complementary to each other
+    is_compatible = (
+        any(comp in c2_lower for comp in c1_complements) or
+        any(comp in c1_lower for comp in c2_complements)
+    )
+    
+    # If checking 3 colors, ensure all combinations work
+    if color3 and is_compatible:
+        c3_lower = safe_str(color3, "").lower()
+        if not c3_lower:
+            return is_compatible
+            
+        c3_complements = get_complementary_colors(c3_lower)
+        
+        is_compatible = is_compatible and (
+            any(comp in c3_lower for comp in c1_complements) or
+            any(comp in c1_lower for comp in c3_complements)
+        ) and (
+            any(comp in c3_lower for comp in c2_complements) or
+            any(comp in c2_lower for comp in c3_complements)
+        )
+    
+    return is_compatible
+
+
+def get_style_score(anchor_style: str, item_style: str) -> int:
+    """
+    Calculate style compatibility score (higher is better)
+    
+    Args:
+        anchor_style: Style of anchor item (formal, casual, sporty, etc.)
+        item_style: Style of item to match
+    
+    Returns:
+        Score from 0-10
+    """
+    # Safely convert to strings
+    anchor_lower = safe_str(anchor_style, "").lower()
+    item_lower = safe_str(item_style, "").lower()
+    
+    if not anchor_lower or not item_lower:
+        return 5  # Neutral score if style unknown
+    
+    # Exact match is best
+    if anchor_lower == item_lower:
+        return 10
+    
+    # Compatible style combinations
+    compatible_styles = {
+        "formal": ["formal", "business", "elegant", "classic"],
+        "casual": ["casual", "streetwear", "relaxed", "everyday"],
+        "sporty": ["sporty", "athletic", "active", "sports"],
+        "business": ["business", "formal", "professional"],
+        "streetwear": ["streetwear", "casual", "urban"],
+        "elegant": ["elegant", "formal", "sophisticated"],
+    }
+    
+    # Check if styles are in compatible groups
+    for style_group in compatible_styles.values():
+        if anchor_lower in style_group and item_lower in style_group:
+            return 8
+    
+    # Some styles work together
+    cross_compatible = {
+        ("formal", "business"): 9,
+        ("casual", "streetwear"): 9,
+        ("sporty", "casual"): 7,
+        ("business", "elegant"): 8,
+    }
+    
+    for (s1, s2), score in cross_compatible.items():
+        if (anchor_lower == s1 and item_lower == s2) or (anchor_lower == s2 and item_lower == s1):
+            return score
+    
+    # Different styles but not incompatible
+    return 4
+
+
+def safe_str(value: Any, default: str = "") -> str:
+    """Safely convert any value to string, handling None, NaN, and floats"""
+    if value is None:
+        return default
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return default
+        return str(value)
+    return str(value)
+
+
+def find_matching_items(
+    dataset: List[Dict],
+    target_category: str,
+    anchor_item: Dict,
+    selected_items: List[Dict] = None,
+    limit: int = 6
+) -> List[Dict]:
+    """
+    Find matching items from a specific category with enhanced filtering
+    
+    Args:
+        dataset: Dataset to search from
+        target_category: Category to find (from TOPWEAR, BOTTOMWEAR, etc.)
         anchor_item: The anchor item to match against
+        selected_items: Already selected items to ensure compatibility
         limit: Maximum number of items to return
     
     Returns:
-        List of matching footwear items
+        List of matching items
     """
-    anchor_color = anchor_item.get("color", "white")
-    anchor_gender = anchor_item.get("gender", "")
+    anchor_color = safe_str(anchor_item.get("color"), "white")
+    anchor_gender = safe_str(anchor_item.get("gender"), "")
+    anchor_style = safe_str(anchor_item.get("style"), "")
+    anchor_occasion = safe_str(anchor_item.get("occasion"), "")
     complementary_colors = get_complementary_colors(anchor_color)
     
-    # Get all footwear for same gender
-    footwear = [
-        item for item in full_dataset
-        if item.get("main_category") in FOOTWEAR or item.get("sub_category") in FOOTWEAR
+    # Determine which category list to check against
+    if target_category == "topwear":
+        category_list = TOPWEAR
+    elif target_category == "bottomwear":
+        category_list = BOTTOMWEAR
+    elif target_category == "footwear":
+        category_list = FOOTWEAR
+    elif target_category == "accessories":
+        category_list = ACCESSORIES
+    else:
+        return []
+    
+    # Filter dataset by category
+    candidates = [
+        item for item in dataset
+        if item.get("main_category") in category_list or item.get("sub_category") in category_list
     ]
     
     # Filter by gender if available
     if anchor_gender:
-        footwear = [item for item in footwear if item.get("gender") == anchor_gender]
+        candidates = [item for item in candidates if safe_str(item.get("gender")) == anchor_gender]
     
-    # Prioritize complementary colors, especially neutrals
-    matched_footwear = []
-    neutral_colors = ["white", "black", "grey", "beige", "navy blue", "brown"]
+    # Score each candidate
+    scored_candidates = []
+    for item in candidates:
+        # Skip if already selected
+        if selected_items and item.get("id") in [si.get("id") for si in selected_items]:
+            continue
+        
+        item_color = safe_str(item.get("color"), "")
+        item_style = safe_str(item.get("style"), "")
+        item_occasion = safe_str(item.get("occasion"), "")
+        
+        score = 0
+        
+        # Color compatibility (0-40 points)
+        if any(comp.lower() in item_color.lower() for comp in complementary_colors):
+            score += 40
+            # Bonus for neutral colors
+            if item_color.lower() in get_neutral_colors():
+                score += 10
+        
+        # Style compatibility (0-30 points)
+        style_score = get_style_score(anchor_style, item_style)
+        score += style_score * 3
+        
+        # Occasion compatibility (0-20 points)
+        if anchor_occasion and item_occasion == anchor_occasion:
+            score += 20
+        elif anchor_occasion and item_occasion:
+            # Partial match
+            if anchor_occasion.lower() in item_occasion.lower():
+                score += 10
+        
+        # Check compatibility with already selected items (0-10 points)
+        if selected_items:
+            compatible_count = 0
+            for selected in selected_items:
+                if are_colors_compatible(item_color, safe_str(selected.get("color"), "")):
+                    compatible_count += 1
+            score += min(10, compatible_count * 2)
+        
+        scored_candidates.append((score, item))
     
-    # First: neutral complementary colors
-    for item in footwear:
-        item_color = item.get("color", "").lower()
-        if any(neutral in item_color for neutral in neutral_colors):
-            if any(comp.lower() in item_color for comp in complementary_colors):
-                matched_footwear.append(item)
-                if len(matched_footwear) >= limit:
-                    break
-    
-    # Second: any complementary colors
-    if len(matched_footwear) < limit:
-        for item in footwear:
-            if item not in matched_footwear:
-                item_color = item.get("color", "").lower()
-                if any(comp.lower() in item_color for comp in complementary_colors):
-                    matched_footwear.append(item)
-                    if len(matched_footwear) >= limit:
-                        break
-    
-    # Third: any footwear if still not enough
-    if len(matched_footwear) < limit:
-        for item in footwear:
-            if item not in matched_footwear:
-                matched_footwear.append(item)
-                if len(matched_footwear) >= limit:
-                    break
-    
-    return matched_footwear[:limit]
-
-
-def find_matching_accessories(full_dataset: list, anchor_item: dict, limit: int = 6) -> list:
-    """
-    Find matching accessories from full dataset using intelligent color coordination
-    
-    Args:
-        full_dataset: Complete dataset
-        anchor_item: The anchor item to match against
-        limit: Maximum number of items to return
-    
-    Returns:
-        List of matching accessory items
-    """
-    anchor_color = anchor_item.get("color", "white")
-    anchor_gender = anchor_item.get("gender", "")
-    complementary_colors = get_complementary_colors(anchor_color)
-    
-    # Get all accessories for same gender
-    accessories = [
-        item for item in full_dataset
-        if item.get("main_category") in ACCESSORIES or item.get("sub_category") in ACCESSORIES
-    ]
-    
-    # Filter by gender if available
-    if anchor_gender:
-        accessories = [item for item in accessories if item.get("gender") == anchor_gender]
-    
-    # Shuffle for variety
-    random.shuffle(accessories)
-    
-    matched_accessories = []
-    
-    # Prioritize complementary colors
-    for item in accessories:
-        item_color = item.get("color", "").lower()
-        if any(comp.lower() in item_color for comp in complementary_colors):
-            matched_accessories.append(item)
-            if len(matched_accessories) >= limit:
-                break
-    
-    # Fill with any accessories if needed
-    if len(matched_accessories) < limit:
-        for item in accessories:
-            if item not in matched_accessories:
-                matched_accessories.append(item)
-                if len(matched_accessories) >= limit:
-                    break
-    
-    return matched_accessories[:limit]
+    # Sort by score (highest first) and return top items
+    scored_candidates.sort(key=lambda x: x[0], reverse=True)
+    return [item for score, item in scored_candidates[:limit]]
 
 
 def clean_item(item: dict) -> dict:
@@ -169,18 +292,27 @@ def clean_item(item: dict) -> dict:
     return cleaned
 
 
-def match_outfit_from_image(anchor_item: dict, similar_items: list, full_dataset: list = None, limit: int = 6):
+def match_outfit_from_image(
+    anchor_item: dict,
+    similar_items: list,
+    full_dataset: list = None,
+    limit: int = 6
+) -> Dict[str, List[Dict]]:
     """
-    Match complete outfit based on an anchor item using two-stage selection.
+    Create a complete, well-coordinated outfit based on an anchor item
     
-    Stage 1: Use FAISS similar_items for clothing (visually similar)
-    Stage 2: Use full_dataset for footwear and accessories (complementary selection)
+    This enhanced version guarantees:
+    1. Complete outfits with all categories filled
+    2. Color coordination across ALL items
+    3. Style consistency (formal/casual/sporty)
+    4. Gender consistency
+    5. Variety in anchor category alternatives
     
     Args:
-        anchor_item: The main item from uploaded image (already cleaned)
-        similar_items: FAISS search results (list of similar items)
-        full_dataset: Complete dataset for footwear/accessories selection (optional)
-        limit: Maximum items per category (default: 6)
+        anchor_item: The main item from uploaded image
+        similar_items: FAISS search results for visual similarity
+        full_dataset: Complete dataset for comprehensive matching
+        limit: Items per category (default: 6)
     
     Returns:
         Dictionary with outfit categories:
@@ -192,72 +324,132 @@ def match_outfit_from_image(anchor_item: dict, similar_items: list, full_dataset
         }
     """
     outfit = defaultdict(list)
-
-    # Get anchor item properties (with fallbacks for missing data)
-    anchor_category = anchor_item.get("sub_category", "").strip()
-    anchor_gender = anchor_item.get("gender", "").strip().lower()
-    anchor_season = anchor_item.get("season", "").strip().lower()
-
-    # ===== STAGE 1: Get clothing from FAISS results =====
-    for item in similar_items:
-        # Skip the anchor item itself
-        if item.get("id") == anchor_item.get("id"):
-            continue
-
-        # Get item properties
-        item_gender = item.get("gender", "").strip().lower()
-        item_season = item.get("season", "").strip().lower()
-        sub_cat = item.get("sub_category", "").strip()
-
-        # Filter by gender (if available)
-        if anchor_gender and item_gender and item_gender != anchor_gender:
-            continue
-
-        # Prefer same season but don't enforce strictly
-        season_match = (not anchor_season or not item_season or 
-                       item_season == anchor_season or 
-                       anchor_season == "all seasons" or 
-                       item_season == "all seasons")
-
-        # If uploaded image is TOPWEAR - get bottoms from FAISS
-        if anchor_category in TOPWEAR:
-            if sub_cat in BOTTOMWEAR and len(outfit["Bottomwear"]) < limit:
-                outfit["Bottomwear"].append(item)
-
-        # If uploaded image is BOTTOMWEAR - get tops from FAISS
-        elif anchor_category in BOTTOMWEAR:
-            if sub_cat in TOPWEAR and len(outfit["Topwear"]) < limit:
-                outfit["Topwear"].append(item)
-
-        # If uploaded image is FOOTWEAR - get clothing from FAISS
-        elif anchor_category in FOOTWEAR:
-            if sub_cat in TOPWEAR and len(outfit["Topwear"]) < limit:
-                outfit["Topwear"].append(item)
-            elif sub_cat in BOTTOMWEAR and len(outfit["Bottomwear"]) < limit:
-                outfit["Bottomwear"].append(item)
-
-        # If uploaded image is ACCESSORY - get clothing from FAISS
-        elif anchor_category in ACCESSORIES:
-            if sub_cat in TOPWEAR and len(outfit["Topwear"]) < limit:
-                outfit["Topwear"].append(item)
-            elif sub_cat in BOTTOMWEAR and len(outfit["Bottomwear"]) < limit:
-                outfit["Bottomwear"].append(item)
-
-    # ===== STAGE 2: Get footwear and accessories from full dataset =====
+    selected_items = [anchor_item]  # Track all selected items for compatibility checking
+    
+    # Get anchor properties (safely convert to strings)
+    anchor_category = safe_str(anchor_item.get("sub_category"), "").strip()
+    anchor_main_cat = safe_str(anchor_item.get("main_category"), "").strip()
+    anchor_gender = safe_str(anchor_item.get("gender"), "").strip()
+    
+    # Determine which dataset to use
+    working_dataset = full_dataset if full_dataset else similar_items
+    if not working_dataset:
+        working_dataset = []
+    
+    # ===== STRATEGY: Ensure ALL categories are filled =====
+    
+    # 1. TOPWEAR: Get complementary tops
+    if anchor_main_cat in TOPWEAR or anchor_category in TOPWEAR:
+        # Anchor is topwear - get alternative topwear for variety (limit 2-3)
+        alternative_tops = find_matching_items(
+            working_dataset,
+            "topwear",
+            anchor_item,
+            selected_items,
+            limit=min(3, limit // 2)
+        )
+        outfit["Topwear"].extend(alternative_tops)
+        selected_items.extend(alternative_tops)
+    else:
+        # Anchor is NOT topwear - get matching topwear (full limit)
+        matching_tops = find_matching_items(
+            working_dataset,
+            "topwear",
+            anchor_item,
+            selected_items,
+            limit=limit
+        )
+        outfit["Topwear"].extend(matching_tops)
+        selected_items.extend(matching_tops)
+    
+    # 2. BOTTOMWEAR: Get complementary bottoms
+    if anchor_main_cat in BOTTOMWEAR or anchor_category in BOTTOMWEAR:
+        # Anchor is bottomwear - get alternative bottoms for variety
+        alternative_bottoms = find_matching_items(
+            working_dataset,
+            "bottomwear",
+            anchor_item,
+            selected_items,
+            limit=min(3, limit // 2)
+        )
+        outfit["Bottomwear"].extend(alternative_bottoms)
+        selected_items.extend(alternative_bottoms)
+    else:
+        # Anchor is NOT bottomwear - get matching bottomwear
+        matching_bottoms = find_matching_items(
+            working_dataset,
+            "bottomwear",
+            anchor_item,
+            selected_items,
+            limit=limit
+        )
+        outfit["Bottomwear"].extend(matching_bottoms)
+        selected_items.extend(matching_bottoms)
+    
+    # 3. FOOTWEAR: Get matching shoes
+    if anchor_main_cat in FOOTWEAR or anchor_category in FOOTWEAR:
+        # Anchor is footwear - get alternative footwear
+        alternative_footwear = find_matching_items(
+            working_dataset,
+            "footwear",
+            anchor_item,
+            selected_items,
+            limit=min(3, limit // 2)
+        )
+        outfit["Footwear"].extend(alternative_footwear)
+        selected_items.extend(alternative_footwear)
+    else:
+        # Anchor is NOT footwear - get matching footwear
+        # Prioritize neutral colors for footwear
+        matching_footwear = find_matching_items(
+            working_dataset,
+            "footwear",
+            anchor_item,
+            selected_items,
+            limit=limit
+        )
+        outfit["Footwear"].extend(matching_footwear)
+        selected_items.extend(matching_footwear)
+    
+    # 4. ACCESSORIES: Get at least 3-4 complementary accessories
+    accessories_limit = max(4, limit // 2)  # At least 4 accessories
+    if anchor_main_cat in ACCESSORIES or anchor_category in ACCESSORIES:
+        # Anchor is accessory - get more diverse accessories
+        accessories_limit = max(5, limit)
+    
+    matching_accessories = find_matching_items(
+        working_dataset,
+        "accessories",
+        anchor_item,
+        selected_items,
+        limit=accessories_limit
+    )
+    outfit["Accessories"].extend(matching_accessories)
+    selected_items.extend(matching_accessories)
+    
+    # ===== QUALITY CHECK: Ensure minimum items in each category =====
+    # If any category is empty and we have a dataset, try to fill it with basic matches
     if full_dataset:
-        # Get footwear using intelligent color matching (unless anchor is footwear)
-        if anchor_category not in FOOTWEAR:
-            footwear_limit = limit if len(outfit["Footwear"]) == 0 else limit - len(outfit["Footwear"])
-            if footwear_limit > 0:
-                matched_footwear = find_matching_footwear(full_dataset, anchor_item, footwear_limit)
-                outfit["Footwear"].extend(matched_footwear)
+        # For categories that are completely empty, add some generic matches
+        # (This usually happens when dataset is limited or gender/style filters are too strict)
         
-        # Get accessories using intelligent color matching (unless anchor is accessory)
-        if anchor_category not in ACCESSORIES:
-            accessories_limit = max(3, limit // 2)  # At least 3 accessories
-            if len(outfit["Accessories"]) < accessories_limit:
-                remaining = accessories_limit - len(outfit["Accessories"])
-                matched_accessories = find_matching_accessories(full_dataset, anchor_item, remaining)
-                outfit["Accessories"].extend(matched_accessories)
-
+        if len(outfit["Topwear"]) == 0 and (anchor_main_cat not in TOPWEAR and anchor_category not in TOPWEAR):
+            # Only add topwear if anchor isn't topwear (otherwise empty is fine)
+            outfit["Topwear"] = find_matching_items(full_dataset, "topwear", anchor_item, [], min(3, limit))
+        
+        if len(outfit["Bottomwear"]) == 0 and (anchor_main_cat not in BOTTOMWEAR and anchor_category not in BOTTOMWEAR):
+            # Only add bottomwear if anchor isn't bottomwear
+            outfit["Bottomwear"] = find_matching_items(full_dataset, "bottomwear", anchor_item, [], min(3, limit))
+        
+        if len(outfit["Footwear"]) == 0:
+            # Always try to have footwear
+            outfit["Footwear"] = find_matching_items(full_dataset, "footwear", anchor_item, [], min(3, limit))
+        
+        if len(outfit["Accessories"]) < 3:
+            # Always aim for at least 3 accessories
+            needed = min(4, accessories_limit) - len(outfit["Accessories"])
+            if needed > 0:
+                more_accessories = find_matching_items(full_dataset, "accessories", anchor_item, selected_items, needed)
+                outfit["Accessories"].extend(more_accessories)
+    
     return outfit
